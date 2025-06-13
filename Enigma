@@ -1,0 +1,227 @@
+import Toolbox as tb
+import pandas as pd
+import numpy as np
+import random as rand
+import playfair
+
+rotors = pd.read_csv('rotors.txt', sep=',',index_col=None, header=None, 
+names=['rotor_number','rotor_setting','model', 'notch','rotor_count'])
+reflectors = pd.read_csv('reflectors.txt', sep=',', index_col=None, header=None,
+names=['reflector', 'reflector_setting'])
+match= pd.read_csv('match.txt', sep=',', index_col=None, header=None,
+names=['model', 'reflector'])
+date_keybook = pd.read_csv('date_keybook.txt', sep=',', index_col=None, header=None,
+names=['month','key'])
+operator_keybook=  pd.read_csv('operator_keybook.txt', sep=',', index_col=None, header=None).to_numpy()
+
+alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+
+
+class Enigma:
+
+    
+    def __init__(self, steckerbrett, rotor_I, rotor_II, rotor_III, reflector, possible_rotors_from, model, key='AAA'):
+
+        rotor_I=rotors.loc[(rotors['model'].isin(possible_rotors_from)) &(rotors['rotor_number']==rotor_I)]['rotor_setting'].iloc[0]
+        notch_I=rotors.loc[(rotors['model'].isin(possible_rotors_from)) &(rotors['rotor_number']==rotor_I)]['notch'].iloc[0]
+        rotor_II=rotors.loc[(rotors['model'].isin(possible_rotors_from)) &(rotors['rotor_number']==rotor_II)]['rotor_setting'].iloc[0]
+        notch_II=rotors.loc[(rotors['model'].isin(possible_rotors_from)) &(rotors['rotor_number']==rotor_II)]['notch'].iloc[0]
+        rotor_III=rotors.loc[(rotors['model'].isin(possible_rotors_from)) &(rotors['rotor_number']==rotor_III)]['rotor_setting'].iloc[0]
+        notch_III=rotors.loc[(rotors['model'].isin(possible_rotors_from)) &(rotors['rotor_number']==rotor_III)]['notch'].iloc[0]
+        reflector=reflectors.loc[match['model']== model & match['reflector']==reflector]['reflector_setting'].to_numpy()
+    
+        self.key = key
+        self.slow = tb.Rotor(rotor_I, notch = notch_I)
+        self.medium = tb.Rotor(rotor_II, notch = notch_II)
+        self.fast = tb.Rotor(rotor_III, notch = notch_III)
+        self.reflector= tb.Reflector(reflector)
+        self.steckerbrett = tb.Steckerbrett(steckerbrett)
+
+        if self.verify_key(self, 3):
+            self.slow.rotate_to_letter(self.key[0])
+            self.medium.rotate_to_letter(self.key[1])
+            self.fast.rotate_to_letter(self.key[2])
+
+    def forward(self, letter):
+            signal = tb.Keyboard.forward(letter)
+            signal = self.steckerbrett.forward(signal)
+            signal, notch_signal = self.fast.forward(signal)
+            self.fast.rotate()
+            signal, notch_signal=self.medium.forward(signal, notch_signal=notch_signal)
+            signal, _=self.slow.forward(signal)
+            signal = self.reflector.forward(signal)
+            return signal
+
+    def backward(self, signal):
+        signal = self.slow.backward(signal)
+        signal = self.medium.backward(signal)
+        signal = self.fast.backward(signal)
+        signal = self.steckerbrett.backward(signal)
+        return tb.Keyboard.backward(signal)
+
+    def enc_dec(self,plaintext):
+        ciphertext = []
+        for i in plaintext:
+            signal = self.forward(i)
+            letter = self.backward(signal)
+            ciphertext.append(letter)
+        return ''.join(ciphertext)
+            
+    def reset(self):  
+            self.slow.rotate_to_letter(self.key[0])
+            self.medium.rotate_to_letter(self.key[1])
+            self.fast.rotate_to_letter(self.key[2])
+    
+    def verify_key(self, key_length):
+        if (type(self.key)== str) & len(self.key) == key_length:
+            return True
+        return False
+            
+
+class Enigma_I(Enigma):
+
+
+    def __init__(self, steckerbrett, rotor_I, rotor_II, rotor_III, reflector, key='AAA'):
+        super().__init__(steckerbrett, rotor_I, rotor_II, rotor_III, reflector, possible_rotors_from=['Enigma_I'], model='Enigma_I', key = key)
+
+    def enc_dec(self, plaintext):
+        text = self.key + self.key
+        key = super().enc_dec(text)
+        if key[0:2]==key[3:5]:
+            self.key = key
+            super().reset()
+        return super().enc_dec(plaintext)
+
+
+class M3_Army(Enigma):
+
+
+    def __init__(self, steckerbrett, rotor_I, rotor_II, rotor_III, reflector, key='AAA'):
+        super().__init__(steckerbrett, rotor_I, rotor_II, rotor_III, reflector, key, possible_rotors_from=['M3_Army','Enigma_I'], model='M3_Army')
+
+    def enc_dec(self, plaintext):
+        text = self.key + self.key
+        key = super().enc_dec(text)
+        if key[0:2]==key[3:5]:
+            self.key = key
+            super().reset()
+        return super().enc_dec(plaintext)
+
+    
+
+
+class commercial_A_B(Enigma):
+
+
+    def __init__(self, rotor_I, rotor_II, rotor_III, reflector):
+        super().__init__([], rotor_I, rotor_II, rotor_III, reflector, key='A', possible_rotors_from=['Commercial_Enigma_A_B'], model='Commercial_Enigma_A_B')
+        
+    def forward(self, letter):
+        signal = tb.Keyboard.forward(letter)
+        signal, _ = self.fast.forward(signal)
+        signal, _ = self.medium.forward(signal)
+        signal, _ = self.slow.forward(signal)
+        signal = self.reflector.forward(signal)
+        return signal
+
+    def backward(self, signal):
+        signal = self.slow.backward(signal)
+        signal = self.medium.backward(signal)
+        signal = self.fast.backward(signal)
+        return tb.Keyboard.backward(signal)
+    
+    def enc_dec(self, plaintext):
+        ciphertext = []
+        for i in plaintext:
+            signal = self.forward(i)
+            letter = self.backward(signal)
+            ciphertext.append(letter)
+        return ''.join(ciphertext)
+    
+
+
+class M3_Navy(Enigma):
+    def __init__(self, steckerbrett, rotor_I, rotor_II, rotor_III, reflector,month, day):
+        key = date_keybook.loc[date_keybook['month']==month]['key'].iloc[day-1]
+        super().__init__(steckerbrett, rotor_I, rotor_II, rotor_III, reflector, possible_rotors_from=['Enigma_I','M3_Army','M3_Naval','M4_R2'], model='M3_Navy', key=key)
+
+    def enc_dec(self,plaintext):
+        text = self.key + self.key
+        key = super().enc_dec(text)
+        if key[0:2]==key[3:5]:
+            self.key = key
+            super().reset()
+        return super().enc_dec(plaintext)
+
+
+#in Swiss-k, ETW is the steckerbrett's replacement and there is only one possible reflector
+class Swiss_K(Enigma):
+    def __init__(self, rotor_I, rotor_II, rotor_III, key='AAA', entry_wheel='ETW_K'):
+        super().__init__([], rotor_I, rotor_II, rotor_III, 'UKW_K','UKW_K', possible_rotors_from=['Swiss_K'],model='Swiss_K',key=key)
+        self.entry_wheel_left = alphabet
+        self.entry_wheel_right = rotors.loc[rotors['rotor_number']==entry_wheel]['rotor_setting'].to_numpy()
+
+        def enc_dec(self, plaintext):
+            text = self.key + self.key
+            key = super().enc_dec(text)
+            if key[0:2]==key[3:5]:
+                self.key = key
+                super().reset()
+            return super().enc_dec(plaintext)
+        
+
+
+class German_Railway(Swiss_K):
+    def __init__(self, rotor_I, rotor_II, rotor_III, possible_rotors_from, model, key='AAA'):
+        super().__init__([], rotor_I, rotor_II, rotor_III, 'UKW', possible_rotors_from=['German_Railway_(Rocket)'], model='German_Railway_(Rocket)',entry_wheel='ETW', key=key)
+
+    def enc_dec(self, plaintext):
+        return super().enc_dec(plaintext)
+    
+class M4_Navy(Enigma):
+    def __init__(self, steckerbrett, rotor_I, rotor_II, rotor_III, rotor_IV, reflector, possible_rotors_from, model, month, day, randoms='AA'):
+        first = date_keybook.loc[date_keybook['month']==month]['key'].iloc[day-1]
+        keybook = operator_keybook.shape
+        second = operator_keybook[rand.randint(0,keybook[0]-1),rand.randint(0,keybook[1]-1)]
+        self.initial_key = randoms[0]+ second[0] + first[0] + second[1] + first[1] + second[2] + first[2] + randoms[1]
+        super().__init__(steckerbrett, rotor_I, rotor_II, rotor_III, reflector, possible_rotors_from=['Enigma_I','M3_Army','M4_Naval'], model='M4_Naval', key=self.key)
+        rotor_IV = rotors.loc[(rotors['model'].isin('M4_R2')) &(rotors['rotor_number']==rotor_IV)]['rotor_setting'].iloc[0]
+        self.thin, _ = tb.Rotor(rotor_IV)
+        #the actual M4_Naval uses a bigram table to encode the key. it is heavy and pointless for me to write,
+        #so I will use something resembling a playfair to implement this bigram
+        bigram = np.array([["H","E","I","L","T"],
+                            ["R","U","A","N","B"],
+                            ["C","D","F","G","K"],
+                            ["M","O","P","Q","S"],
+                            ["V","W","X","Y","Z"]])
+        
+        self.key = playfair.enc_dec(self.key,bigram)
+        self.key = self.key[1] + self.key[3] + self.key[5]
+
+        self.slow.rotate_to_letter(self.key[0])
+        self.medium.rotate_to_letter(self.key[1])
+        self.fast.rotate_to_letter(self.key[2])
+
+    def forward(self, letter):
+        signal = tb.Keyboard.forward(letter)
+        signal = self.steckerbrett.forward(signal)
+        signal, notch_signal = self.fast.forward(signal)
+        self.fast.rotate()
+        signal, notch_signal=self.medium.forward(signal, notch_signal=notch_signal)
+        signal, _=self.slow.forward(signal)
+        signal,_=self.thin.forward(signal)
+        signal = self.reflector.forward(signal)
+        return signal
+    
+    def backward(self, signal):
+        signal = self.thin.backward(signal)
+        return super().backward(signal)
+    
+    def enc(self, plaintext):
+        ciphertext = [self.key]
+        for i in plaintext:
+            signal = self.forward(i)
+            letter = self.backward(signal)
+            ciphertext.append(letter)
+        return ''.join(ciphertext)
+
