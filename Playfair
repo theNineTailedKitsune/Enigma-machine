@@ -1,0 +1,27 @@
+import numpy as np
+
+class playfair:
+    def enc_dec(self, plaintext,bigram):
+        ciphertext = []
+        if len(plaintext)%2!=0:
+            plaintext += 'Z'
+
+        for i in range(0,len(plaintext),2):
+            first = np.where(plaintext[i]==bigram)
+            second = np.where(plaintext[i+1]==bigram)
+            if first[0] == second[0]:
+                first = bigram[first[0],(first[1]+1)%bigram.shape[1]]
+                second = bigram[second[0],(second[1]+1)%bigram.shape[1]]
+
+            elif first[1]==second[1]:
+                first = bigram[(first[0]+1)%bigram.shape[0],first[1]]
+                second = bigram[(second[0]+1)%bigram.shape[0],second[1]]
+
+            else:
+                first = bigram[first[0],second[1]]
+                second = bigram[second[0],first[1]]
+            
+            ciphertext.append(first)
+            ciphertext.append(second)
+        return ''.join(ciphertext)
+        
