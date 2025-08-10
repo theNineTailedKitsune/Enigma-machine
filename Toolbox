@@ -1,17 +1,20 @@
-#note: this section of the code is partially written by: https://www.youtube.com/watch?v=StI2R__7DBA
-
 import pandas as pd
-alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' 
+'''
+Enigma type I
+reflector : A, B or C
+key:
+ring_setting:
+'''
 
 class Keyboard:
 
-
     def forward(self, letter):
-        signal = alphabet.find(letter)
+        letter = letter.upper()
+        signal = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.find(letter)
         return signal
 
     def backward(self, signal):
-        letter = alphabet[signal]
+        letter = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[signal]
         return letter
 
 
@@ -22,23 +25,25 @@ class Steckerbrett:
     #takes as input a list of 2 character strings as steckerbrett input
     def __init__(self, pairs):
 
-        self.left = alphabet
-        self.right = alphabet
+        self.left = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' 
+        self.right = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' 
 
         for pair in pairs:
             
-            A = pair[0]
-            B = pair[1]
+            A = pair[0].upper()
+            B = pair[1].upper()
 
-            pos_A = self.left.find(A)
-            pos_B = self.left.find(B)
+            pos_A = self.left.find(A.upper())
+            pos_B = self.left.find(B.upper())
 
             self.left = self.left[:pos_A]+B+self.left[pos_A+1:]
             self.left = self.left[:pos_B]+A+self.left[pos_B+1:]
 
+
+
     def forward(self, signal):
-        letter = self.right[signal]
-        signal = self.left.find(letter)
+        letter = self.left[signal]
+        signal = self.right.find(letter)
         return signal
 
     def backward(self, signal):
@@ -51,23 +56,21 @@ class Steckerbrett:
 class Rotor:
 
 
-    def __init__(self, rotor_setting, notch=None):
-        self.left = alphabet
-        self.right = rotor_setting
+    def __init__(self, rotor_setting, notch='0'):
+        self.right = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' 
+        self.left = rotor_setting
         
         if not notch == None:
             self.notch = notch
+        else:
+            self.notch = '0'
 
-    def forward(self, signal, notch_signal= False):
-        if notch_signal:
-            self.rotate()
+    def forward(self, signal):
 
-        notch_signal = False
         letter = self.right[signal]
         signal = self.left.find(letter)
 
-        if (self.notch==self.left[0]):
-            notch_signal = True
+        notch_signal = self.notch ==self.left[0]
         
         return signal, notch_signal
 
@@ -76,25 +79,34 @@ class Rotor:
         signal = self.right.find(letter)
         return signal
 
-    def rotate(self,shift=1):
-        self.left = self.left[shift:]+self.left[0:shift-1]
-        self.right = self.right[shift:]+self.right[0:shift-1]
+    def rotate(self):
+        self.left = self.left[25:]+self.left[0:25]
 
     def rotate_to_letter(self, letter):
-        n = alphabet.find(letter.upper())
-        self.rotate(n)
+        n = self.left.find(letter.upper())
+        self.left = self.left[n:]+self.left[0:n]
 
 
 
 class Reflector:
 
 
-    def __init__(self, reflector):
-        self.left = alphabet
-        self.right = reflector
+    def __init__(self, reflector_setting):
+        self.right = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' 
+        self.left = reflector_setting
 
     def forward(self, signal):
         letter = self.right[signal]
         signal = self.left.find(letter)
         return signal
 
+class Entry_wheel(Rotor):
+    def __init__(self):
+        rotor_setting ='QWERTYUIOPASDFGHJKLZXCVBNM'
+        super().__init__(rotor_setting, notch=None)
+
+    def forward(self, signal):
+        return super().forward(signal)
+    
+    def backward(self, signal):
+        return super().backward(signal)
