@@ -47,6 +47,7 @@ class Enigma:
         self.steckerbrett = tb.Steckerbrett(steckerbrett)
         left = self.steckerbrett.left
         right = self.steckerbrett.right
+        self.reset()
 
         if self.verify_key(3):
             self.slow.rotate_to_letter(self.key[0])
@@ -59,6 +60,7 @@ class Enigma:
         for i in plaintext:
             signal = tb.Keyboard.forward(tb.Keyboard, i)
             signal = self.steckerbrett.forward(signal)
+            signal,_ = self.entry_wheel.forward(signal)
             signal, notch_I = self.fast.forward(signal)
             signal, notch_II=self.medium.forward(signal)
             signal, _=self.slow.forward(signal)
@@ -66,23 +68,24 @@ class Enigma:
             signal = self.slow.backward(signal)
             signal = self.medium.backward(signal)
             signal = self.fast.backward(signal)
+            signal = self.entry_wheel.backward(signal)
             signal = self.steckerbrett.backward(signal)
             letter = tb.Keyboard.backward( tb.Keyboard,signal)
             ciphertext.append(letter)
 
-            if self.model!= 'Commercial_Enigma_A_B':
-                self.fast.rotate()
-                if notch_I:
-                    self.medium.rotate()
-                if notch_II:
-                    self.slow.rotate()
+
+            self.fast.rotate()
+            if notch_I:
+                self.medium.rotate()
+            if notch_II:
+                self.slow.rotate()
 
         return ''.join(ciphertext)
             
     def reset(self):  
-            self.slow.rotate_to_letter(self.key[0])
+            self.slow.rotate_to_letter(self.key[2])
             self.medium.rotate_to_letter(self.key[1])
-            self.fast.rotate_to_letter(self.key[2])
+            self.fast.rotate_to_letter(self.key[0])
     
     def verify_key(self, key_length):
         if (type(self.key)== str) & len(self.key) == key_length:
@@ -120,8 +123,7 @@ class Enigma_I(Enigma):
 
 
     def __init__(self, steckerbrett, rotor_I, rotor_II, rotor_III, reflector, key='AAA'):
-        self.key = key
-        super().__init__(steckerbrett, rotor_I, rotor_II, rotor_III, reflector, possible_rotors_from=['Enigma_I'], model='Enigma_I', key = self.key)
+        super().__init__(steckerbrett, rotor_I, rotor_II, rotor_III, reflector, possible_rotors_from=['Enigma_I'], model='Enigma_I', key = key)
 
     def enc_dec(self, plaintext):
         return super().enc_dec(plaintext)
@@ -320,8 +322,8 @@ class M4_Navy(Enigma):
         return super().backward(signal)
     
 
-plaintext = 'ABCABC'
-Enigma_machine = Enigma_I(['pk', 'nt'],'II','III','I','Reflector_C', 'ZQP')
+plaintext = 'AAAAAA'
+Enigma_machine = Enigma_I([],'II','III','I','Reflector_C', 'AAA')
 
 Enigma_machine.reset()
 ciphertext = Enigma_machine.enc_dec(plaintext)
