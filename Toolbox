@@ -76,11 +76,19 @@ class Rotor:
 
     def rotate(self):
         self.left = self.left[25:]+self.left[0:25]
+        self.right = self.right[25:]+self.right[0:25]
 
     def rotate_to_letter(self, letter):
         n = self.left.find(letter.upper())
         self.left = self.left[n:]+self.left[0:n]
+        self.right = self.right[n:]+self.right[0:n]
 
+    def rotate_ring(self):
+        self.left = self.left[25:]+self.left[0:25]
+
+    def rotate_to_letter_ring(self, letter):
+        n = self.left.find(letter.upper())
+        self.left = self.left[n:]+self.left[0:n]
 
 
 class Reflector:
