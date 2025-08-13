@@ -5,9 +5,24 @@ from Enigma import Enigma_I
 from itertools import permutations
 import multiprocessing as mp
 import pandas as pd
-import pandas as pd
 import string
 import time
+import numpy as np
+import os
+
+cpu_count = mp.cpu_count()
+
+if len(os.sched_getaffinity(0)) < cpu_count:
+    try:
+        os.sched_setaffinity(0,range(cpu_count))
+    except OSError:
+        print('could not set affinity')
+
+n = max(len(os.sched_getaffinity(0)),12)
+print(n)
+
+
+alphabet = string.ascii_uppercase
 
 
 def find_loops(positional_table):
@@ -16,64 +31,100 @@ def find_loops(positional_table):
     loop_lists = []
     
     for align in alignments:
-        while len(letters)>0:
-            begin = 0
-            begin = letters[0]
+        sub_df = positional_table[[align[0], align[1]]]
 
-            begin = positional_table[align[0]==begin[0]][align[1]]
-            
-
+        mapping_dict = {}
+        for _, row in sub_df.iterrows():
+            mapping_dict[row.iloc[0]] = row.iloc[1]
         
+        remaining_letters = list(letters)
+        loop_lengths = []
+        
+        while remaining_letters:
+            start = remaining_letters[0]
+            current = start
+            count = 0
+            while current in remaining_letters:
+                remaining_letters.remove(current)
+                count += 1
+                current = mapping_dict.get(current)
+                if current is None:
+                    break
+            if count > 0:
+                loop_lengths.append(str(count))
+
+        '-'.join(loop_lengths)
         loop_lists.append(loop_lengths)
     
     return loop_lists
 
-def analysis(enigma, keys,rotor_setting_dictionary):
-    alphabet = string.ascii_uppercase
-    for key in keys:
-        enigma.set_key(key)
-        for letter in alphabet:
-            row = []
-            positional_table = pd.DataFrame(columns=[1,2,3,4,5,6])
-            for _ in range(6):
-                row.append(enigma.enc_dec(letter))
-            positional_table.loc[len(positional_table)] = row
-            loop = find_loops(positional_table)
-        rotor_setting_dictionary.loc[len(rotor_setting_dictionary)] = [key , loop]
+def analysis(key):
+    Enigma_machine.set_key(key)
+    positional_table = pd.DataFrame(columns=[1,2,3,4,5,6])
+    for letter in alphabet:
+        row = []
+        for _ in range(6):
+            row.append(Enigma_machine.enc_dec(letter))
+        positional_table.loc[len(positional_table)] = row
+        Enigma_machine.reset()
+    loop = find_loops(positional_table)
+    rotor_setting_dictionary.loc[len(rotor_setting_dictionary)] = [key , loop]
+    return rotor_setting_dictionary
 
 
 rotors = ['I','II','III']
 
 rotor_permutations = permutations(rotors)
 
-alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 
-enigma = Enigma_I([],'I','II','III','Reflector_B','AAA')
+'''positional_table = pd.DataFrame(columns=[0,1,2,3,4,5,6]) 
+
+for letter in alphabet:
+
+    row = [letter]
+
+    for _ in range(6):
+
+        value = Enigma_machine.enc_dec(letter)
+
+        row.append(value)
+
+
+
+    positional_table.loc[len(positional_table)] = row
+
+    Enigma_machine.reset()
+
+'''
+
+
+keys = []
+
+for i in alphabet:
+    for j in alphabet:
+        for k in alphabet:
+            keys.append(i+j+k)
+
+
 positional_table = pd.DataFrame(columns=[1,2,3,4,5,6])
 rotor_setting_dictionary = pd.DataFrame(columns=['Key','Signature'])
 
-def parallelization(enigma,rotors):    
-    processes = []
+result = []
+results = []
+Enigma_machine = Enigma_I([],'I','II','III','Reflector_B')
 
-    for i in alphabet:
-        for j in alphabet:
-            for k in alphabet:
-                p = mp.Process(target=analysis,args=[enigma,i+j+k,rotors])
-                p.start()
-                processes.append(p)
-    processes.join()
-
-positional_table = pd.DataFrame(columns=[0,1,2,3,4,5,6]) 
-for letter in alphabet:
-    row = [letter]
-    for _ in range(6):
-        row.append(enigma.enc_dec(letter))
-    positional_table.loc[len(positional_table)] = row
-print(positional_table)
-
-print(find_loops(positional_table))
+for rotor_order in rotor_permutations:
+    tic = time.time()
+    with mp.Pool(12) as pool:
+        results = pool.map(analysis,keys)
+    tac = time.time()
+    print(tac-tic)
+    #TODO: concatenate the results 
+    print('done')
 
 
+
+rotor_setting_dictionary.to_csv('rotor_setting_dict.csv', index=False)
 
 
 #TODO: set the table of loops
