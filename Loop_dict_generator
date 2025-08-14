@@ -1,0 +1,109 @@
+from Enigma import Enigma_I
+from itertools import permutations
+import multiprocessing as mp
+import pandas as pd
+import string
+import time
+import os
+import csv
+
+cpu_count = mp.cpu_count()
+
+if len(os.sched_getaffinity(0)) < cpu_count:
+    try:
+        os.sched_setaffinity(0,range(cpu_count))
+    except OSError:
+        print('could not set affinity')
+
+n = max(len(os.sched_getaffinity(0)),12)
+print(n)
+
+alphabet = string.ascii_uppercase
+
+def find_loops(positional_table):
+    letters = string.ascii_uppercase
+    alignments = [[4,1], [5,2], [6,3]]
+    loop_lists = []
+    
+    for align in alignments:
+        sub_df = positional_table[[align[0], align[1]]]
+        mapping_dict = {}
+        for _, row in sub_df.iterrows():
+            mapping_dict[row.iloc[0]] = row.iloc[1]
+        
+        remaining_letters = list(letters)
+        loop_lengths = []
+        
+        while remaining_letters:
+            start = remaining_letters[0]
+            current = start
+            count = 0
+            while current in remaining_letters:
+                remaining_letters.remove(current)
+                count += 1
+                current = mapping_dict.get(current)
+                if current is None:
+                    break
+            if count > 0:
+                loop_lengths.append(str(count))
+        loop_lists.append(loop_lengths)
+    
+    return loop_lists[0], loop_lists[1], loop_lists[2]
+
+def writer_process(queue, filename):
+    with open(filename, 'w', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow(['Rotor Order','Key','Signature1','Signature2','Signature3'])
+        while True:
+            data = queue.get()
+            if data is None:
+                break
+
+            writer.writerow([data[0], data[1], data[2], data[3], data[4]])
+            f.flush()  # Ensure immediate write
+
+def analysis(args):
+    key, rotor_order, queue = args
+    enigma = Enigma_I([], *rotor_order, 'Reflector_B')
+    enigma.set_key(key)
+    positional_table = []
+    
+    for letter in alphabet:
+        enigma.set_key(key)
+        row = []
+        for _ in range(6):
+            row.append(enigma.enc_dec(letter))
+        positional_table.append(row)
+    
+    df = pd.DataFrame(positional_table, columns=[1,2,3,4,5,6])
+    loop1, loop2, loop3 = find_loops(df)
+    # Format rotor order with quotes
+    rotor_str = "','".join(rotor_order)
+    rotor_str = f"'{rotor_str}'"
+    queue.put((rotor_str, key, loop1, loop2, loop3))
+
+if __name__ == '__main__':
+    rotors = ['I','II','III']
+    keys = [i+j+k for i in alphabet for j in alphabet for k in alphabet]
+    output_file = 'enigma_signatures.csv'
+    
+    # Use Manager for process-safe Queue
+    manager = mp.Manager()
+    queue = manager.Queue()
+    
+    writer = mp.Process(target=writer_process, args=(queue, output_file))
+    writer.start()
+    
+    for rotor_order in permutations(rotors):
+        tic = time.time()
+        # Create arguments with queue reference
+        args = [(key, rotor_order, queue) for key in keys]
+        
+        with mp.Pool(n) as pool:
+            pool.map(analysis, args)
+        
+        print(f'Done with {rotor_order} in {time.time()-tic:.2f}s')
+    
+    queue.put(None)
+    writer.join()
+    print("Processing complete!")
