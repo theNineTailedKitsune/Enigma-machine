@@ -1,0 +1,8 @@
+"German_Railway_(Rocket)",4,0
+"Commercial_Enigma_A_B",3,3
+"Swiss_K",3,0
+"Enigma_I",3,0
+"M3_Army",3,0
+"M3_Naval",3,0
+"M4_Naval",4,1
+"M4_R2",4,1

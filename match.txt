@@ -1,0 +1,16 @@
+"German_Railway_(Rocket)","UKW"
+"Enigma_I","Reflector_A"
+"Enigma_I","Reflector_B"
+"Enigma_I","Reflector_C"
+"M3_Army","Reflector_B"
+"M3_Army","Reflector_C"
+"M3_Naval","Reflector_B"
+"M3_Naval","Reflector_C"
+"M4_Naval","Reflector_B_Thin"
+"M4_Naval","Reflector_C_Thin"
+"M4_R2","Reflector_B_Thin"
+"M4_R2","Reflector_C_Thin"
+"Swiss_K","UKW-K"
+"Commercial_Enigma_A_B","Reflector_A"
+
+
