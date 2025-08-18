@@ -39,7 +39,6 @@ class Enigma:
 
         self.model = model
         self.key = key
-        self.entry_wheel = tb.Rotor('QWERTZUIOASDFGHJKPYXCVBNML')
         self.fast = tb.Rotor(rotor_I_setting , notch = notch_I)
         self.medium = tb.Rotor(rotor_II_setting , notch = notch_II)
         self.slow = tb.Rotor(rotor_III_setting , notch = notch_III)
@@ -60,7 +59,6 @@ class Enigma:
         for i in plaintext:
             signal = tb.Keyboard.forward(tb.Keyboard, i)
             signal = self.steckerbrett.forward(signal)
-            signal,_ = self.entry_wheel.forward(signal)
             signal, notch_I = self.fast.forward(signal)
             signal, notch_II=self.medium.forward(signal)
             signal, _=self.slow.forward(signal)
@@ -68,7 +66,6 @@ class Enigma:
             signal = self.slow.backward(signal)
             signal = self.medium.backward(signal)
             signal = self.fast.backward(signal)
-            signal = self.entry_wheel.backward(signal)
             signal = self.steckerbrett.backward(signal)
             letter = tb.Keyboard.backward( tb.Keyboard,signal)
             ciphertext.append(letter)
